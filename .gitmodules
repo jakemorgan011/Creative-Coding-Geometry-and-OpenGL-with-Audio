@@ -1,0 +1,3 @@
+[submodule "Infinite Space/JUCE"]
+	path = Infinite Space/JUCE
+	url = https://github.com/juce-framework/JUCE.git
