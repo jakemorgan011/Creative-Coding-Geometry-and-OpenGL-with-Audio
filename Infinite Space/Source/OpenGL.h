@@ -1,12 +1,22 @@
+// Copyright (c) 2025, Jake Morgan, termite
+// This code contains all the basic steps necessary to start understanding audio sculpting
+// This code is free to use for any purpose.
 /*
-  ==============================================================================
-
-    OpenGl.h
-    Created: 2 Jul 2025 4:00:23pm
-    Author:  Jake Morgan
-
-  ==============================================================================
+  _        __ _       _ _                                  
+ (_)      / _(_)     (_) |                                 
+  _ _ __ | |_ _ _ __  _| |_ ___   ___ _ __   __ _  ___ ___ 
+ | | '_ \|  _| | '_ \| | __/ _ \ / __| '_ \ / _` |/ __/ _ \
+ | | | | | | | | | | | | ||  __/ \__ \ |_) | (_| | (_|  __/
+ |_|_| |_|_| |_|_| |_|_|\__\___| |___/ .__/ \__,_|\___\___|
+                                     | |                   
+                                     |_|                   
 */
+// welcome. this one is a bit of a doozy.
+// strap in.
+// This file is sourced directly from the JUCE OpenGL tutorial with some modifications
+// I'm using a default GLSL shader they use for `toon` shading
+// since we're in c++ we have to be extra careful about what we do with memory.
+// there's a few bugs i found with the help  of the JUCE forums and i'll point them out as you read.
 
 #pragma once
 //#include <JuceHeader.h>
@@ -14,28 +24,10 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 #include "WavefrontObjParser.h"
 #include "BinaryData.h"
-// ALRIGHT
-// MAKING A PLUGIN AGAIN
-// HERES THE PLAN:
-// 1. GET THE HORSE OBJ ON SCREEN. 
-// 2. MAKE IT SO YOU CAN GRAB IT WITH MOUSE AND ROTATE IT.
-// 3. MAKE REVERB
-// 4. MAKE ROTATION AFFECT REVERB
-// 5. ADD KEYPRESS TO CHANGE HORSE DISTANCE AND WHAT NOT
-// 6. MAKE THAT REFLECT IN REVERB -- you are here.
-// 7. MAKE SURE THAT ALL SAVES TO XML AND CAN BE LOADED.
-// 8. TRIPLE CHECK FOR MEMORY LEAKS.
-// 9. GO BACK AND FIX THE XML
-// 10. PRAY TO GOD IT WORKS.
-// 11. CALL JAKE CHEN AND ASK HIM FOR HELP WITH XML
 
-// BEGIN
-// USING CLASSES FROM OPENGL DEMO FROM JUCER
-// GOING TO COPY THE "TOON SHADER" FRAGMENT SHADER FROM DOCS
 
-// forward declaration
-//class TheHorsePluginAudioProcessor;
-
+// for this section i'm not gonna talk much about it.
+// this is mostly code from JUCE docs
 using namespace juce;
 struct OpenGLUtils
 {
@@ -156,30 +148,21 @@ struct OpenGLUtils
     {
         Shape()
         {
+            // HELLO:
+            // JAKE HERE.
+            // READ THIS BELOW
             /// important:
             // always double check that the .obj file ONLY has vertex information.
             // some modeling software includes comments and mtl instructions that cause the file to not load with juce.
             File obj_file = File::getCurrentWorkingDirectory().getChildFile("assets/teapot.obj");
-
-            //auto obj_str = String(BinaryData::teapot_obj, BinaryData::teapot_objSize);
+            //
+            // NOTICE
+            // i'm being so real with you...
+            // the code got so messy that if i delete any one of these obj grabbers the whole thing breaks.
+            // note to self: refactor more.
             auto obj_str = String(BinaryData::spiky_obj, BinaryData::spiky_objSize);
 
             String spiky_obj = String::createStringFromData(BinaryData::spiky_obj, BinaryData::spiky_objSize);
-            // okay so this breaks everything because it loads from JUCE's resource library.
-            // which we are not accessing our path kinda looks like JUCE/resources/assets/assets/horse.obj which doesn't exist.
-//            if (shapeFile.load (loadEntireAssetIntoString ("assets/horse.obj")).wasOk())
-//                //DBG("horse asset found");
-//                for (auto* s : shapeFile.shapes)
-//                    vertexBuffers.add (new VertexBuffer (*s));
-            
-//            if(shapeFile.load(obj_file).wasOk()){
-//                for (auto* s : shapeFile.shapes)
-//                    vertexBuffers.add (new VertexBuffer (*s));
-//            }
-            
-            
-            
-            
             
             if(shapeFile.load(obj_str).wasOk()){
                 for (auto* s : shapeFile.shapes)
@@ -206,21 +189,30 @@ struct OpenGLUtils
         {
             explicit VertexBuffer (WavefrontObjFile::Shape& shape)
             {
+                // if you've never taken a look at OpenGL calls here's a great place to start!
+                // we need an array that will store our buffer of our vertices for our object we want to display.
+                // whether that's one 4 vertices our 10k
+                // This is pretty default OpenGL calls so I'll keep the comments minimal.
                 using namespace ::juce::gl;
 
                 numIndices = shape.mesh.indices.size();
 
                 glGenBuffers (1, &vertexBuffer);
+                // init binding
                 glBindBuffer (GL_ARRAY_BUFFER, vertexBuffer);
 
                 Array<Vertex> vertices;
-                // Color palette: #D62828 (vibrant red)
+                // color #D62828 (red)
                 Colour modelColor = Colour::fromRGB(214, 40, 40);
+                // great JUCE function to be able to create an array to pass to the GPU/OpenGL
                 createVertexListFromMesh (shape.mesh, vertices, modelColor);
-
+                
+                // assign the data to buffer.
+                // memory needs to be very specific
                 glBufferData (GL_ARRAY_BUFFER, vertices.size() * (int) sizeof (Vertex),
                               vertices.getRawDataPointer(), GL_STATIC_DRAW);
-
+                // indexBuffer is our id system for all of our vertices.
+                // kind of like an enumeration/hash map ID system.
                 glGenBuffers (1, &indexBuffer);
                 glBindBuffer (GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
                 glBufferData (GL_ELEMENT_ARRAY_BUFFER, numIndices * (int) sizeof (juce::uint32),
@@ -284,483 +276,14 @@ struct OpenGLUtils
         const char* fragmentShader;
     };
 
-    static Array<ShaderPreset> getPresets()
-    {
+    static ShaderPreset get_toon_preset(){        
         #define SHADER_DEMO_HEADER \
             "/*  This is a live OpenGL Shader demo.\n" \
             "    Edit the shader program below and it will be \n" \
             "    compiled and applied to the model above!\n" \
             "*/\n\n"
 
-        ShaderPreset presets[] =
-        {
-            {
-                "Texture + Lighting",
 
-                SHADER_DEMO_HEADER
-                "attribute vec4 position;\n"
-                "attribute vec4 normal;\n"
-                "attribute vec4 sourceColour;\n"
-                "attribute vec2 textureCoordIn;\n"
-                "\n"
-                "uniform mat4 projectionMatrix;\n"
-                "uniform mat4 viewMatrix;\n"
-                "uniform vec4 lightPosition;\n"
-                "\n"
-                "varying vec4 destinationColour;\n"
-                "varying vec2 textureCoordOut;\n"
-                "varying float lightIntensity;\n"
-                "\n"
-                "void main()\n"
-                "{\n"
-                "    destinationColour = sourceColour;\n"
-                "    textureCoordOut = textureCoordIn;\n"
-                "\n"
-                "    vec4 light = viewMatrix * lightPosition;\n"
-                "    lightIntensity = dot (light, normal);\n"
-                "\n"
-                "    gl_Position = projectionMatrix * viewMatrix * position;\n"
-                "}\n",
-
-                SHADER_DEMO_HEADER
-               #if JUCE_OPENGL_ES
-                "varying lowp vec4 destinationColour;\n"
-                "varying lowp vec2 textureCoordOut;\n"
-                "varying highp float lightIntensity;\n"
-               #else
-                "varying vec4 destinationColour;\n"
-                "varying vec2 textureCoordOut;\n"
-                "varying float lightIntensity;\n"
-               #endif
-                "\n"
-                "uniform sampler2D demoTexture;\n"
-                "\n"
-                "void main()\n"
-                "{\n"
-               #if JUCE_OPENGL_ES
-                "   highp float l = max (0.3, lightIntensity * 0.3);\n"
-                "   highp vec4 colour = vec4 (l, l, l, 1.0);\n"
-               #else
-                "   float l = max (0.3, lightIntensity * 0.3);\n"
-                "   vec4 colour = vec4 (l, l, l, 1.0);\n"
-               #endif
-                "    gl_FragColor = colour * texture2D (demoTexture, textureCoordOut);\n"
-                "}\n"
-            },
-
-            {
-                "Textured",
-
-                SHADER_DEMO_HEADER
-                "attribute vec4 position;\n"
-                "attribute vec4 sourceColour;\n"
-                "attribute vec2 textureCoordIn;\n"
-                "\n"
-                "uniform mat4 projectionMatrix;\n"
-                "uniform mat4 viewMatrix;\n"
-                "\n"
-                "varying vec4 destinationColour;\n"
-                "varying vec2 textureCoordOut;\n"
-                "\n"
-                "void main()\n"
-                "{\n"
-                "    destinationColour = sourceColour;\n"
-                "    textureCoordOut = textureCoordIn;\n"
-                "    gl_Position = projectionMatrix * viewMatrix * position;\n"
-                "}\n",
-
-                SHADER_DEMO_HEADER
-               #if JUCE_OPENGL_ES
-                "varying lowp vec4 destinationColour;\n"
-                "varying lowp vec2 textureCoordOut;\n"
-               #else
-                "varying vec4 destinationColour;\n"
-                "varying vec2 textureCoordOut;\n"
-               #endif
-                "\n"
-                "uniform sampler2D demoTexture;\n"
-                "\n"
-                "void main()\n"
-                "{\n"
-                "    gl_FragColor = texture2D (demoTexture, textureCoordOut);\n"
-                "}\n"
-            },
-
-            {
-                "Flat Colour",
-
-                SHADER_DEMO_HEADER
-                "attribute vec4 position;\n"
-                "attribute vec4 sourceColour;\n"
-                "attribute vec2 textureCoordIn;\n"
-                "\n"
-                "uniform mat4 projectionMatrix;\n"
-                "uniform mat4 viewMatrix;\n"
-                "\n"
-                "varying vec4 destinationColour;\n"
-                "varying vec2 textureCoordOut;\n"
-                "\n"
-                "void main()\n"
-                "{\n"
-                "    destinationColour = sourceColour;\n"
-                "    textureCoordOut = textureCoordIn;\n"
-                "    gl_Position = projectionMatrix * viewMatrix * position;\n"
-                "}\n",
-
-                SHADER_DEMO_HEADER
-               #if JUCE_OPENGL_ES
-                "varying lowp vec4 destinationColour;\n"
-                "varying lowp vec2 textureCoordOut;\n"
-               #else
-                "varying vec4 destinationColour;\n"
-                "varying vec2 textureCoordOut;\n"
-               #endif
-                "\n"
-                "void main()\n"
-                "{\n"
-                "    gl_FragColor = destinationColour;\n"
-                "}\n"
-            },
-
-            {
-                "Rainbow",
-
-                SHADER_DEMO_HEADER
-                "attribute vec4 position;\n"
-                "attribute vec4 sourceColour;\n"
-                "attribute vec2 textureCoordIn;\n"
-                "\n"
-                "uniform mat4 projectionMatrix;\n"
-                "uniform mat4 viewMatrix;\n"
-                "\n"
-                "varying vec4 destinationColour;\n"
-                "varying vec2 textureCoordOut;\n"
-                "\n"
-                "varying float xPos;\n"
-                "varying float yPos;\n"
-                "varying float zPos;\n"
-                "\n"
-                "void main()\n"
-                "{\n"
-                "    vec4 v = vec4 (position);\n"
-                "    xPos = clamp (v.x, 0.0, 1.0);\n"
-                "    yPos = clamp (v.y, 0.0, 1.0);\n"
-                "    zPos = clamp (v.z, 0.0, 1.0);\n"
-                "    gl_Position = projectionMatrix * viewMatrix * position;\n"
-                "}",
-
-                SHADER_DEMO_HEADER
-               #if JUCE_OPENGL_ES
-                "varying lowp vec4 destinationColour;\n"
-                "varying lowp vec2 textureCoordOut;\n"
-                "varying lowp float xPos;\n"
-                "varying lowp float yPos;\n"
-                "varying lowp float zPos;\n"
-               #else
-                "varying vec4 destinationColour;\n"
-                "varying vec2 textureCoordOut;\n"
-                "varying float xPos;\n"
-                "varying float yPos;\n"
-                "varying float zPos;\n"
-               #endif
-                "\n"
-                "void main()\n"
-                "{\n"
-                "    gl_FragColor = vec4 (xPos, yPos, zPos, 1.0);\n"
-                "}"
-            },
-
-            {
-                "Changing Colour",
-
-                SHADER_DEMO_HEADER
-                "attribute vec4 position;\n"
-                "attribute vec2 textureCoordIn;\n"
-                "\n"
-                "uniform mat4 projectionMatrix;\n"
-                "uniform mat4 viewMatrix;\n"
-                "\n"
-                "varying vec2 textureCoordOut;\n"
-                "\n"
-                "void main()\n"
-                "{\n"
-                "    textureCoordOut = textureCoordIn;\n"
-                "    gl_Position = projectionMatrix * viewMatrix * position;\n"
-                "}\n",
-
-                SHADER_DEMO_HEADER
-                "#define PI 3.1415926535897932384626433832795\n"
-                "\n"
-               #if JUCE_OPENGL_ES
-                "precision mediump float;\n"
-                "varying lowp vec2 textureCoordOut;\n"
-               #else
-                "varying vec2 textureCoordOut;\n"
-               #endif
-                "uniform float bouncingNumber;\n"
-                "\n"
-                "void main()\n"
-                "{\n"
-                "   float b = bouncingNumber;\n"
-                "   float n = b * PI * 2.0;\n"
-                "   float sn = (sin (n * textureCoordOut.x) * 0.5) + 0.5;\n"
-                "   float cn = (sin (n * textureCoordOut.y) * 0.5) + 0.5;\n"
-                "\n"
-                "   vec4 col = vec4 (b, sn, cn, 1.0);\n"
-                "   gl_FragColor = col;\n"
-                "}\n"
-            },
-
-            {
-                "Simple Light",
-
-                SHADER_DEMO_HEADER
-                "attribute vec4 position;\n"
-                "attribute vec4 normal;\n"
-                "\n"
-                "uniform mat4 projectionMatrix;\n"
-                "uniform mat4 viewMatrix;\n"
-                "uniform vec4 lightPosition;\n"
-                "\n"
-                "varying float lightIntensity;\n"
-                "\n"
-                "void main()\n"
-                "{\n"
-                "    vec4 light = viewMatrix * lightPosition;\n"
-                "    lightIntensity = dot (light, normal);\n"
-                "\n"
-                "    gl_Position = projectionMatrix * viewMatrix * position;\n"
-                "}\n",
-
-                SHADER_DEMO_HEADER
-               #if JUCE_OPENGL_ES
-                "varying highp float lightIntensity;\n"
-               #else
-                "varying float lightIntensity;\n"
-               #endif
-                "\n"
-                "void main()\n"
-                "{\n"
-               #if JUCE_OPENGL_ES
-                "   highp float l = lightIntensity * 0.25;\n"
-                "   highp vec4 colour = vec4 (l, l, l, 1.0);\n"
-               #else
-                "   float l = lightIntensity * 0.25;\n"
-                "   vec4 colour = vec4 (l, l, l, 1.0);\n"
-               #endif
-                "\n"
-                "    gl_FragColor = colour;\n"
-                "}\n"
-            },
-
-            {
-                "Flattened",
-
-                SHADER_DEMO_HEADER
-                "attribute vec4 position;\n"
-                "attribute vec4 normal;\n"
-                "\n"
-                "uniform mat4 projectionMatrix;\n"
-                "uniform mat4 viewMatrix;\n"
-                "uniform vec4 lightPosition;\n"
-                "\n"
-                "varying float lightIntensity;\n"
-                "\n"
-                "void main()\n"
-                "{\n"
-                "    vec4 light = viewMatrix * lightPosition;\n"
-                "    lightIntensity = dot (light, normal);\n"
-                "\n"
-                "    vec4 v = vec4 (position);\n"
-                "    v.z = v.z * 0.1;\n"
-                "\n"
-                "    gl_Position = projectionMatrix * viewMatrix * v;\n"
-                "}\n",
-
-                SHADER_DEMO_HEADER
-               #if JUCE_OPENGL_ES
-                "varying highp float lightIntensity;\n"
-               #else
-                "varying float lightIntensity;\n"
-               #endif
-                "\n"
-                "void main()\n"
-                "{\n"
-               #if JUCE_OPENGL_ES
-                "   highp float l = lightIntensity * 0.25;\n"
-                "   highp vec4 colour = vec4 (l, l, l, 1.0);\n"
-               #else
-                "   float l = lightIntensity * 0.25;\n"
-                "   vec4 colour = vec4 (l, l, l, 1.0);\n"
-               #endif
-                "\n"
-                "    gl_FragColor = colour;\n"
-                "}\n"
-            },
-
-            {
-                "Toon Shader",
-
-                SHADER_DEMO_HEADER
-                "attribute vec4 position;\n"
-                "attribute vec4 normal;\n"
-                "\n"
-                "uniform mat4 projectionMatrix;\n"
-                "uniform mat4 viewMatrix;\n"
-                "uniform vec4 lightPosition;\n"
-                "\n"
-                "varying float lightIntensity;\n"
-                "\n"
-                "void main()\n"
-                "{\n"
-                "    vec4 light = viewMatrix * lightPosition;\n"
-                "    lightIntensity = dot (light, normal);\n"
-                "\n"
-                "    gl_Position = projectionMatrix * viewMatrix * position;\n"
-                "}\n",
-
-                SHADER_DEMO_HEADER
-               #if JUCE_OPENGL_ES
-                "varying highp float lightIntensity;\n"
-               #else
-                "varying float lightIntensity;\n"
-               #endif
-                "\n"
-                "void main()\n"
-                "{\n"
-               #if JUCE_OPENGL_ES
-                "    highp float intensity = lightIntensity * 0.5;\n"
-                "    highp vec4 colour;\n"
-               #else
-                "    float intensity = lightIntensity * 0.5;\n"
-                "    vec4 colour;\n"
-               #endif
-                "\n"
-                "    if (intensity > 0.95)\n"
-                "        colour = vec4 (1.0, 0.5, 0.5, 1.0);\n"
-                "    else if (intensity > 0.5)\n"
-                "        colour  = vec4 (0.6, 0.3, 0.3, 1.0);\n"
-                "    else if (intensity > 0.25)\n"
-                "        colour  = vec4 (0.4, 0.2, 0.2, 1.0);\n"
-                "    else\n"
-                "        colour  = vec4 (0.2, 0.1, 0.1, 1.0);\n"
-                "\n"
-                "    gl_FragColor = colour;\n"
-                "}\n"
-            }
-        };
-
-        return Array<ShaderPreset> (presets, numElementsInArray (presets));
-    }
-    
-    struct default_shader final {
-        static inline const char* vertexShader =
-            SHADER_DEMO_HEADER
-            "attribute vec4 position;\n"
-            "attribute vec4 normal;\n"
-            "\n"
-            "uniform mat4 projectionMatrix;\n"
-            "uniform mat4 viewMatrix;\n"
-            "uniform vec4 lightPosition;\n"
-            "\n"
-            "varying float lightIntensity;\n"
-            "\n"
-            "void main()\n"
-            "{\n"
-            "    vec4 light = viewMatrix * lightPosition;\n"
-            "    lightIntensity = dot (light, normal);\n"
-            "\n"
-            "    gl_Position = projectionMatrix * viewMatrix * position;\n"
-            "}\n";
-        
-        static inline const char* fragmentShader =
-            SHADER_DEMO_HEADER
-            #if JUCE_OPENGL_ES
-            "varying highp float lightIntensity;\n"
-            #else
-            "varying float lightIntensity;\n"
-            #endif
-            "\n"
-            "void main()\n"
-            "{\n"
-            #if JUCE_OPENGL_ES
-            "    highp float intensity = lightIntensity * 0.5;\n"
-            "    highp vec4 colour;\n"
-            #else
-            "    float intensity = lightIntensity * 0.5;\n"
-            "    vec4 colour;\n"
-            #endif
-            "\n"
-            "    if (intensity > 0.95)\n"
-            "        colour = vec4 (1.0, 0.5, 0.5, 1.0);\n"
-            "    else if (intensity > 0.5)\n"
-            "        colour  = vec4 (0.6, 0.3, 0.3, 1.0);\n"
-            "    else if (intensity > 0.25)\n"
-            "        colour  = vec4 (0.4, 0.2, 0.2, 1.0);\n"
-            "    else\n"
-            "        colour  = vec4 (0.2, 0.1, 0.1, 1.0);\n"
-            "\n"
-            "    gl_FragColor = colour;\n"
-            "}\n";
-        
-        static const char* get_fragment_shader() {
-            return fragmentShader;
-        }
-        static const char* get_vertex_shader() {
-            return vertexShader;
-        }
-    };
-    
-    static ShaderPreset get_rainbow_preset() {
-        return {
-            "Rainbow",
-            
-            SHADER_DEMO_HEADER
-            "attribute vec4 position;\n"
-            "attribute vec4 sourceColour;\n"
-            "attribute vec2 textureCoordIn;\n"
-            "\n"
-            "uniform mat4 projectionMatrix;\n"
-            "uniform mat4 viewMatrix;\n"
-            "\n"
-            "varying vec4 destinationColour;\n"
-            "varying vec2 textureCoordOut;\n"
-            "\n"
-            "varying float xPos;\n"
-            "varying float yPos;\n"
-            "varying float zPos;\n"
-            "\n"
-            "void main()\n"
-            "{\n"
-            "    vec4 v = vec4 (position);\n"
-            "    xPos = clamp (v.x, 0.0, 1.0);\n"
-            "    yPos = clamp (v.y, 0.0, 1.0);\n"
-            "    zPos = clamp (v.z, 0.0, 1.0);\n"
-            "    gl_Position = projectionMatrix * viewMatrix * position;\n"
-            "}",
-            
-            SHADER_DEMO_HEADER
-           #if JUCE_OPENGL_ES
-            "varying lowp vec4 destinationColour;\n"
-            "varying lowp vec2 textureCoordOut;\n"
-            "varying lowp float xPos;\n"
-            "varying lowp float yPos;\n"
-            "varying lowp float zPos;\n"
-           #else
-            "varying vec4 destinationColour;\n"
-            "varying vec2 textureCoordOut;\n"
-            "varying float xPos;\n"
-            "varying float yPos;\n"
-            "varying float zPos;\n"
-           #endif
-            "\n"
-            "void main()\n"
-            "{\n"
-            "    gl_FragColor = vec4 (xPos, yPos, zPos, 1.0);\n"
-            "}"
-        };
-    }
-    static ShaderPreset get_toon_preset(){
         return {
             "Toon",
 
@@ -914,12 +437,11 @@ public:
         if (auto* peer = getPeer()){
             peer->setCurrentRenderingEngine(0);
         }
-        OpenGLUtils::ShaderPreset rainbow = OpenGLUtils::get_toon_preset();
+        OpenGLUtils::ShaderPreset toon_shader = OpenGLUtils::get_toon_preset();
         if(shader.get() == nullptr){
-            setShaderProgram(rainbow.vertexShader, rainbow.fragmentShader);
+            setShaderProgram(toon_shader.vertexShader, toon_shader.fragmentShader);
             //setShaderProgram(OpenGLUtils::default_shader::get_vertex_shader(),OpenGLUtils::default_shader::get_fragment_shader());
             DBG("shader program set successfully.");
-            // newVertexShader = OpenGLUtils::getPresets()[4];
         }
         setOpaque(true);
         overlay.reset (new class overlay (*this));
