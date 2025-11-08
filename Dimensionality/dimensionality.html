@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>dimensionality</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+</head>
+<body>
+    <h1>dimensionality example</h1>
+    <div class='content' id='dimensionality'>
+        <div class='sidebar'>
+            <h2 style="border: wave; font-size: 1.76em;">controls</h2>
+            
+            <p class='ani-bar' id='p0' style="font-size: 1.35em; margin: 0;">--------</p>
+            
+            <label for="obj-input">
+                <i class="fas fa-upload"></i>upload .obj
+            </label>
+            <input type="file" id="obj-input" accept=".obj" />
+            
+            <label for="wav-input">
+                <i class="fas fa-upload"></i>upload .wav
+            </label>
+            <input type="file" id="wav-input" accept=".wav,.mp3" />
+            
+            <p class='ani-bar' id='p1' style="font-size: 1.35em; margin: 0;">----------</p>
+            
+            <button id="process-btn" disabled>process audio</button>
+            <button id="play-btn" disabled>start playback</button>
+            <button id="stop-btn" disabled>stop playback</button>
+            
+            <p class='ani-bar' id='p2' style="font-size: 1.35em; margin: 0;">----------</p>
+            
+            <button id="download-btn" disabled>download .wav</button>
+            
+            <div id="status" style="color: white; padding: 10px; margin-top: 20px;">
+                <h3>Status:</h3>
+                <p id="status-text">Ready</p>
+            </div>
+            
+            <div id="params-display" style="color: white; padding: 10px; margin-top: 20px; display: none;">
+                <h3>Mesh Parameters:</h3>
+                <div id="params-list"></div>
+            </div>
+        </div>
+        
+        <div class='sketch-container' style="justify-content: center;">
+            <div class='canvas-container' id='canvas-container-dimensionality'>
+                <script src="sketch.js"></script>
+            </div>
+        </div>
+    </div> 
+    <script src="p_animate.js"></script> 
+    <script src="mesh_fingerprinting.js""></script>
+</body>
+</html>
