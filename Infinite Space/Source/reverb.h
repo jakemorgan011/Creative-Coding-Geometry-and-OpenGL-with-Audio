@@ -1,11 +1,15 @@
+// Copyright (c) 2025, Jake Morgan, termite
+// This code contains all the basic steps necessary to start understanding audio sculpting
+// This code is free to use for any purpose.
 /*
-  ==============================================================================
-
-    reverb.h
-    Created: 10 Sep 2025 12:56:58pm
-    Author:  Jake Morgan
-
-  ==============================================================================
+  _        __ _       _ _                                  
+ (_)      / _(_)     (_) |                                 
+  _ _ __ | |_ _ _ __  _| |_ ___   ___ _ __   __ _  ___ ___ 
+ | | '_ \|  _| | '_ \| | __/ _ \ / __| '_ \ / _` |/ __/ _ \
+ | | | | | | | | | | | | ||  __/ \__ \ |_) | (_| | (_|  __/
+ |_|_| |_|_| |_|_| |_|_|\__\___| |___/ .__/ \__,_|\___\___|
+                                     | |                   
+                                     |_|                   
 */
 
 #pragma once
@@ -28,11 +32,6 @@ class delay{
 public:
     delay();
     virtual ~delay();
-    /*
-    virtual void prepare_to_play(double sample_rate);
-    virtual void process_block(juce::AudioBuffer<float>& in_buffer);
-    virtual void set_parameters(float delay_time_ms, float fb_gain);
-    */
 protected:
     double ms_to_samps(double sample_rate, float in_ms){
         return (in_ms * sample_rate)/ 1000;
@@ -45,7 +44,6 @@ protected:
     double f_sample_rate;
 };
 
-// lowkey better practice to have these inherit an object with virtual functions.
 class allpass_filter : public delay{
 public:
     allpass_filter();
@@ -99,18 +97,18 @@ private:
     std::vector<juce::AudioBuffer<float>> comb_buffers;
     const int num_allpass = 2;
     const int num_comb = 4;
-    float comb_gain = 0.7f;  // CRANKED UP for more presence!
-    float allpass_gain = 0.85f;  // MORE diffusion power!
+    
+    // these values will BLOW UP the processor so go crazy and change them a bunch.
+    float comb_gain = 0.7f;
+    float allpass_gain = 0.85f;
 
-    // Bandpass filter for rotation control
     juce::dsp::ProcessorDuplicator<juce::dsp::IIR::Filter<float>, juce::dsp::IIR::Coefficients<float>> bandpassFilter;
     juce::LinearSmoothedValue<float> smoothed_bandpass_freq;
     double current_sample_rate = 44100.0;
 
-    // Rotation modulation for tape warble effect
     float current_rotation = 0.0f;
-    float base_allpass_times[2] = {5.0f, 1.7f};  // Base delay times for allpass filters
-    float current_delay_time = 300.0f;  // Track current delay time
+    float base_allpass_times[2] = {5.0f, 1.7f}; 
+    float current_delay_time = 300.0f; 
     float current_feedback = 0.85f;
     float current_diffusion = 0.8f;
     float current_damping = 0.2f;

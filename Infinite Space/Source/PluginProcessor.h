@@ -1,9 +1,15 @@
+// Copyright (c) 2025, Jake Morgan, termite
+// This code contains all the basic steps necessary to start understanding audio sculpting
+// This code is free to use for any purpose.
 /*
-  ==============================================================================
-
-    This file contains the basic framework code for a JUCE plugin processor.
-
-  ==============================================================================
+  _        __ _       _ _                                  
+ (_)      / _(_)     (_) |                                 
+  _ _ __ | |_ _ _ __  _| |_ ___   ___ _ __   __ _  ___ ___ 
+ | | '_ \|  _| | '_ \| | __/ _ \ / __| '_ \ / _` |/ __/ _ \
+ | | | | | | | | | | | | ||  __/ \__ \ |_) | (_| | (_|  __/
+ |_|_| |_|_| |_|_| |_|_|\__\___| |___/ .__/ \__,_|\___\___|
+                                     | |                   
+                                     |_|                   
 */
 
 #pragma once
@@ -14,9 +20,6 @@
 #include "OpenGL.h"
 #include "reverb.h"
 
-//==============================================================================
-/**
-*/
 class TheHorsePluginAudioProcessor  : public juce::AudioProcessor
 {
 public:
@@ -65,13 +68,11 @@ public:
     std::atomic<float>& getRotationY() { return rotationY; }
     std::atomic<float>& getRotationZ() { return rotationZ; }
 
-    // 3D Position control for spatial reverb
     void setPositionParameters(float x, float y, float z);
     std::atomic<float>& getPositionX() { return positionX; }
     std::atomic<float>& getPositionY() { return positionY; }
     std::atomic<float>& getPositionZ() { return positionZ; }
 
-    // Light position control for reverb characteristics
     void setLightParameters(float x, float y, float z);
     std::atomic<float>& getLightX() { return lightX; }
     std::atomic<float>& getLightY() { return lightY; }
@@ -88,28 +89,24 @@ private:
     std::atomic<float> rotationY{0.0f};
     std::atomic<float> rotationZ{0.0f};
 
-    // 3D position atomics for WASD control
     std::atomic<float> positionX{0.0f};
     std::atomic<float> positionY{0.0f};  // Centered
     std::atomic<float> positionZ{-10.0f};
 
-    // Light position atomics for reverb control
     std::atomic<float> lightX{0.0f};
     std::atomic<float> lightY{10.0f};
     std::atomic<float> lightZ{15.0f};
 
     // static juce::Identifier
-    // ask jake how to do value tree
+    // eventually implement value tree for automation. even though i don't like that idea.
     std::unique_ptr<juce::ValueTree> ValueTree;
     juce::LinearSmoothedValue<float> smoothed_delayt_time_ms;
     juce::LinearSmoothedValue<float> smoothed_dry_wet;
 
-    // Smoothed position parameters for glitch-free audio
     juce::LinearSmoothedValue<float> smoothed_posX;
     juce::LinearSmoothedValue<float> smoothed_posY;
     juce::LinearSmoothedValue<float> smoothed_posZ;
 
-    // Smoothed light parameters for reverb modulation
     juce::LinearSmoothedValue<float> smoothed_lightX;
     juce::LinearSmoothedValue<float> smoothed_lightY;
     juce::LinearSmoothedValue<float> smoothed_lightZ;
