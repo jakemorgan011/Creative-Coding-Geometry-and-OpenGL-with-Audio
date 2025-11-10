@@ -1,6 +1,6 @@
 # Infinite Space vst3/au
 
-## Using spatial coordinates and descriptions as an interface for
+## Using spatial coordinates and descriptions as an interface for audio
 
 ** Build Instructions **
 
