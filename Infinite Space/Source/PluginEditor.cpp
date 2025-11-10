@@ -1,11 +1,16 @@
+// Copyright (c) 2025, Jake Morgan, termite
+// This code contains all the basic steps necessary to start understanding audio sculpting
+// This code is free to use for any purpose.
 /*
-  ==============================================================================
-
-    This file contains the basic framework code for a JUCE plugin editor.
-
-  ==============================================================================
+  _        __ _       _ _                                  
+ (_)      / _(_)     (_) |                                 
+  _ _ __ | |_ _ _ __  _| |_ ___   ___ _ __   __ _  ___ ___ 
+ | | '_ \|  _| | '_ \| | __/ _ \ / __| '_ \ / _` |/ __/ _ \
+ | | | | | | | | | | | | ||  __/ \__ \ |_) | (_| | (_|  __/
+ |_|_| |_|_| |_|_| |_|_|\__\___| |___/ .__/ \__,_|\___\___|
+                                     | |                   
+                                     |_|                   
 */
-
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
@@ -15,23 +20,18 @@ TheHorsePluginAudioProcessorEditor::TheHorsePluginAudioProcessorEditor (TheHorse
 {
     gl = std::make_unique<OpenGLOut>();
 
-    // Original rotation callback
+    // all of the lambda callbacks...
+    // again, don't do this.
     gl->update_callback = [&](float val){p.update_dt(std::abs(val));};
-
-    // WASD position control callback - updates reverb based on 3D position
     gl->position_callback = [&](float x, float y, float z){
         p.setPositionParameters(x, y, z);
     };
-
-    // Light position callback - updates reverb room characteristics
     gl->light_callback = [&](float x, float y, float z){
         p.setLightParameters(x, y, z);
     };
 
     gl->toBack();
     addAndMakeVisible(gl.get());
-    // Make sure that before the constructor has finished, you've set the
-    // editor's size to whatever you need it to be.
     setSize (500, 300);
 }
 
@@ -46,6 +46,5 @@ void TheHorsePluginAudioProcessorEditor::paint (juce::Graphics& g)
 
 void TheHorsePluginAudioProcessorEditor::resized()
 {
-    // might have a pointer issue here.
     gl->setBounds(getLocalBounds());
 }

@@ -19,6 +19,7 @@
 // there's a few bugs i found with the help  of the JUCE forums and i'll point them out as you read.
 
 #pragma once
+// don't ask...
 //#include <JuceHeader.h>
 #include <juce_opengl/juce_opengl.h>
 #include <juce_gui_basics/juce_gui_basics.h>
@@ -565,15 +566,14 @@ public:
             DBG("there's no shader");
             return;
         }
-        // White background
+        // white background
         glClearColor(1.0f, 1.0f, 1.0f, 1.0f);  // White
-        // gotta initialize a ton of stuff to make sure GL is ready to do everything correctyl.
+        // gotta initialize a ton of stuff to make sure GL is ready to do everything correctly.
         glEnable(GL_DEPTH_TEST);
         glDepthFunc(GL_LESS);
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // alright bruh are we fr with these GL objects. this language/tool is hella confusing I get why nobody uses it.
         glActiveTexture(GL_TEXTURE0);
-        // Imma get goated at this language/tool >:)
         if(! openGLContext.isCoreProfile())
             glEnable(GL_TEXTURE_2D);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -613,6 +613,7 @@ public:
         // drawShadowPlane();
 
         // unbind GL BUFFER remember when you forgot to do that that one time lol
+        // 1 binds 0 unbinds. no booleans in GLSL so have to use int
         glBindBuffer(GL_ARRAY_BUFFER, 0);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
@@ -622,7 +623,7 @@ public:
         int64 currentTime = Time::currentTimeMillis();
         bool positionChanged = false;
 
-        // Auto-release keys that haven't been updated recently (key was released)
+        // auto releasing.
         if (keyStates.wPressed.load() && (currentTime - keyStates.wLastTime.load()) > keyTimeout)
             keyStates.wPressed = false;
         if (keyStates.sPressed.load() && (currentTime - keyStates.sLastTime.load()) > keyTimeout)
@@ -640,7 +641,6 @@ public:
         if (keyStates.rPressed.load() && (currentTime - keyStates.rLastTime.load()) > keyTimeout)
             keyStates.rPressed = false;
 
-        // Apply movement based on active keys with bounds checking
         if (keyStates.wPressed.load()) {
             posZ += moveSpeed;  // Move forward
             positionChanged = true;
@@ -666,32 +666,32 @@ public:
             positionChanged = true;
         }
 
-        // CLAMP POSITION to keep object visible on screen
-        // These bounds match the reverb parameter ranges
-        posX = juce::jlimit(-30.0f, 30.0f, posX);   // Left/Right bounds
-        posY = juce::jlimit(-10.0f, 20.0f, posY);   // Up/Down bounds
-        posZ = juce::jlimit(-25.0f, 5.0f, posZ);    // Forward/Back bounds
+        // obj bounds. not entirely correct lol
+        posX = juce::jlimit(-30.0f, 30.0f, posX);
+        posY = juce::jlimit(-10.0f, 20.0f, posY);
+        posZ = juce::jlimit(-25.0f, 5.0f, posZ);
 
-        // Notify audio processor if position changed
+        // lambda check.
         if (positionChanged && position_callback) {
             position_callback(posX, posY, posZ);
         }
 
-        // F/R keys control light X position
+        // used to control light pos. not yet working
         bool lightChanged = false;
         if (keyStates.fPressed.load()) {
-            lightZ += moveSpeed * 2.0f;  // Move light farther = more wet
+            lightZ += moveSpeed * 2.0f; 
             lightChanged = true;
         }
         if (keyStates.rPressed.load()) {
-            lightZ -= moveSpeed * 2.0f;  // Move light closer = more dry
+            lightZ -= moveSpeed * 2.0f;
             lightChanged = true;
         }
 
-        // CLAMP LIGHT POSITION to reasonable bounds
         lightZ = juce::jlimit(-50.0f, 50.0f, lightX);
-
-        // Notify audio processor if light changed
+        
+        // originally had some functionality to use light position as a dry wet parameter.
+        // because of the mutex problem JUCE forums helped me discover using this:
+        // causes a lot of artifacting since we access a different thread from the special 'locked' opengl thread.
         if (lightChanged && light_callback) {
             light_callback(lightX, lightY, lightZ);
         }
@@ -700,20 +700,14 @@ public:
         if (! overlay->isMouseButtonDownThreadSafe()){
             rotation += (float) rotationSpeed;
         }
-//        if(update_callback)
-//            update_callback(juce::jmap(sum_rotation(),(float)-3.14f, (float) 3.14f, (float) 0.001, (float) 1.0f));
-
-        // there needs to be a seperate callback system to basically run the rotation calculation
-        // in the background while the display is closed.
-        // that's the #1 problem at the moment.
-        // and the artifacting...
+        //
+        // there's a small (MASSIVE) issue. 
+        // when the display is closed all the uniform floats that change the display are no longer being accessed/used.
+        // this causes the plugin to only function best when it's open.
+        // that really isn't that bad considering i want this to be a performance tool
         // ie: if(!windowIsOpen()) process rotation outside of render loop.
         if(update_callback)
             update_callback(std::abs(sum_rotation()));
-        /*
-        if(processor){
-            static_cast<TheHorsePluginAudioProcessor*>(processor)->update_dt(rotation);
-        }*/
     }
     
     Matrix3D<float> getProjectionMatrix() const {
@@ -725,7 +719,6 @@ public:
         return Matrix3D<float>::fromFrustum (-w, w, -h, h, 4.0f, 30.0f);
     }
     
-    // need to have a way to communicate between the DGO rotation matrix and audio processor for realtime "rotation audio."
     Matrix3D<float> getViewMatrix() const {
         const ScopedLock lock (mutex);
 
@@ -736,7 +729,6 @@ public:
         return viewMatrix;
     }
 
-    // Model matrix handles the object's rotation
     Matrix3D<float> getModelMatrix() const {
         const ScopedLock lock (mutex);
 
@@ -761,7 +753,7 @@ public:
         return rX + rotation;
     }
 
-    // WASD POSITION CONTROL - Update spatial position and notify audio processor
+    // allows for wasd movement.
     void movePosition(float deltaX, float deltaY, float deltaZ) {
         const ScopedLock lock (mutex);
         posX += deltaX;
@@ -773,10 +765,9 @@ public:
             position_callback(posX, posY, posZ);
     }
 
-    // Callback to update audio processor with position
+    // lambdas.
     std::function<void(float, float, float)> position_callback;
 
-    // Callback to update audio processor with light position
     std::function<void(float, float, float)> light_callback;
 
     //
@@ -801,17 +792,18 @@ public:
     float scale = 1.f, rotationSpeed = 0.002f;  // Slowed down from 0.01f - 5x slower
     CriticalSection mutex;
 
-    // SPATIAL POSITION FOR WASD CONTROL (starting position lower)
+    // wasd pos
     float posX = 0.0f;
     float posY = 0.0f;  // Centered starting position
     float posZ = -10.0f;
 
-    // LIGHT POSITION FOR REVERB CONTROL
+    // light_pos
     float lightX = 0.0f;
     float lightY = 10.0f;
     float lightZ = 15.0f;
 
-    // KEY STATE TRACKING FOR CONTINUOUS MOVEMENT
+    // custom keystate checker since juce uses the event system for its keypresses.
+    // doesn't work entirely...
     struct KeyStates {
         std::atomic<bool> wPressed{false};
         std::atomic<bool> sPressed{false};
@@ -819,10 +811,10 @@ public:
         std::atomic<bool> dPressed{false};
         std::atomic<bool> qPressed{false};
         std::atomic<bool> ePressed{false};
-        std::atomic<bool> fPressed{false};  // Light farther (more wet)
-        std::atomic<bool> rPressed{false};  // Light closer (more dry)
+        std::atomic<bool> fPressed{false};         
+        std::atomic<bool> rPressed{false};  
 
-        // Timestamps for auto-release detection (in milliseconds)
+        // check for last time pressed.
         std::atomic<int64> wLastTime{0};
         std::atomic<int64> sLastTime{0};
         std::atomic<int64> aLastTime{0};
@@ -866,12 +858,10 @@ public:
 
             displayText = "MADE WITH <3 BY PUBLIC SERVICES ";
 
-            // Start timer for cycling text (8 fps for character cycling effect)
             startTimer(125);  // ~8 fps
         }
 
         void parentHierarchyChanged() override {
-            // Grab keyboard focus as soon as we're added to the component hierarchy
             if (isShowing())
                 grabKeyboardFocus();
         }
@@ -890,7 +880,7 @@ public:
             buttonDown = false;
         }
 
-        // WASD KEYBOARD CONTROL - Track key states for continuous movement
+        // wasd control here.
         bool keyPressed(const KeyPress& key) override {
             int64 currentTime = Time::currentTimeMillis();
 
@@ -947,7 +937,7 @@ public:
         }
 
         void focusLost(FocusChangeType cause) override {
-            // Clear all key states when focus is lost
+            // clear 
             gl.keyStates.wPressed = false;
             gl.keyStates.sPressed = false;
             gl.keyStates.aPressed = false;
@@ -958,15 +948,12 @@ public:
             gl.keyStates.rPressed = false;
         }
 
-        // Handle key releases - JUCE will call keyPressed repeatedly while held
-        // We need to detect when keys stop being pressed
         void handleKeyRelease() {
-            // This will be called periodically to check if keys are still down
-            // Since JUCE repeats keyPressed events, if we don't get events, keys are released
+            // never figured this out in time to implement it.
         }
 
+        // text scroller timer
         void timerCallback() override {
-            // Cycle through text character by character
             textIndex++;
             if (textIndex >= displayText.length())
                 textIndex = 0;
@@ -974,28 +961,24 @@ public:
         }
 
         void paint (juce::Graphics& g) override {
-            // Draw texture overlay stretched across ENTIRE screen with higher alpha
             if (texture.isValid()) {
-                g.setOpacity(0.5f);  // 50% opacity - more visible
+                g.setOpacity(0.5f);
                 g.drawImageWithin(texture, 0, 0, weight, height,
                                  juce::RectanglePlacement::stretchToFit);
-                g.setOpacity(1.0f);  // Reset opacity
+                g.setOpacity(1.0f); 
             }
 
-            // Draw cycling 10-character display (LED-style)
             g.setColour(Colour::fromRGB(214, 40, 40));  // #D62828 (red)
             g.setFont(Font("Helvetica", 12.0f, Font::plain));  // Helvetica
 
-            // Get 10 characters starting from current index, convert to lowercase
             String displayWindow = "";
             for (int i = 0; i < 10; i++) {
                 int charIndex = (textIndex + i) % displayText.length();
                 displayWindow += String::charToString(displayText[charIndex]).toLowerCase();
             }
 
-            // Position in bottom-right corner
-            int textX = weight - 130;  // Right side, wider for 10 chars
-            int textY = height - 25;    // Bottom
+            int textX = weight - 130;
+            int textY = height - 25;
 
             g.drawText(displayWindow, textX, textY, 120, 20, Justification::centredLeft);
         }
