@@ -102,17 +102,15 @@ void TheHorsePluginAudioProcessor::prepareToPlay (double sampleRate, int samples
     smoothed_dry_wet.reset(sampleRate, 0.01);
     smoothed_delayt_time_ms.reset(sampleRate, 0.0025);
 
-    // SUPER RESPONSIVE position smoothing (10ms = almost instant!)
     smoothed_posX.reset(sampleRate, 0.01);
     smoothed_posY.reset(sampleRate, 0.01);
     smoothed_posZ.reset(sampleRate, 0.01);
-
-    // FAST light smoothing (20ms for quick changes)
+    
+    // not working rn.
     smoothed_lightX.reset(sampleRate, 0.02);
     smoothed_lightY.reset(sampleRate, 0.02);
     smoothed_lightZ.reset(sampleRate, 0.02);
 
-    // Set initial values
     smoothed_posX.setCurrentAndTargetValue(positionX.load());
     smoothed_posY.setCurrentAndTargetValue(positionY.load());
     smoothed_posZ.setCurrentAndTargetValue(positionZ.load());
@@ -137,15 +135,10 @@ bool TheHorsePluginAudioProcessor::isBusesLayoutSupported (const BusesLayout& la
     juce::ignoreUnused (layouts);
     return true;
   #else
-    // This is the place where you check if the layout is supported.
-    // In this template code we only support mono or stereo.
-    // Some plugin hosts, such as certain GarageBand versions, will only
-    // load plugins that support stereo bus layouts.
     if (layouts.getMainOutputChannelSet() != juce::AudioChannelSet::mono()
      && layouts.getMainOutputChannelSet() != juce::AudioChannelSet::stereo())
         return false;
 
-    // This checks if the input layout matches the output layout
    #if ! JucePlugin_IsSynth
     if (layouts.getMainOutputChannelSet() != layouts.getMainInputChannelSet())
         return false;
@@ -163,7 +156,6 @@ void TheHorsePluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffe
         return;
     }
 
-    // Get smoothed spatial parameters
     float posX = smoothed_posX.getNextValue();
     float posY = smoothed_posY.getNextValue();
     float posZ = smoothed_posZ.getNextValue();
@@ -172,43 +164,25 @@ void TheHorsePluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffe
     float lightY = smoothed_lightY.getNextValue();
     float lightZ = smoothed_lightZ.getNextValue();
 
-    // BASE REVERB SETTINGS - NUCLEAR MODE!
     float baseDelay = smoothed_delayt_time_ms.getNextValue();
 
-    // === ABSOLUTELY INSANE SPATIAL REVERB MAPPING ===
-    // Far away = echo chamber, close up = comb filter madness!
-
-    // Z POSITION (W/S keys: DRAMATIC DEPTH CONTROL)
-    // FAR AWAY (S key, posZ = -25): Echo chamber with minimal feedback (0.2)
-    // CLOSE UP (W key, posZ = 5): Near-infinite feedback (0.995) = EXTREME COMB FILTER CHAOS!
     float feedback = juce::jmap(posZ, -25.0f, 5.0f, 0.2f, 0.995f);
     feedback = juce::jlimit(0.0f, 0.995f, feedback);
 
-    // BONUS: When close, ALSO reduce delay time for SUPER TIGHT FLANGING
     float closenessFlange = juce::jmap(posZ, -25.0f, 5.0f, 1.0f, 0.15f);  // Close = much shorter delays!
 
-    // X POSITION (A/D keys: ABSURD DELAY TIME CHANGES)
-    // LEFT (A key, posX = -30): Tiny slapback (0.03x = ~9ms)
-    // RIGHT (D key, posX = 30): MASSIVE cathedral delays (15x = ~4.5 seconds!)
     float delayMultiplier = juce::jmap(posX, -30.0f, 30.0f, 0.03f, 15.0f);
 
-    // Combine X position with closeness for EXTREME flange when close + left
     float delayTime = baseDelay * delayMultiplier * closenessFlange;
 
-    // Y POSITION (Q/E keys: EXTREME DIFFUSION)
-    // DOWN (E key): Crystal clear discrete echoes (0.05)
-    // UP (Q key): Total washout mud (0.99)
     float diffusion = juce::jmap(posY, -10.0f, 20.0f, 0.05f, 0.99f);
     diffusion = juce::jlimit(0.0f, 0.99f, diffusion);
 
-    // Use very low damping for BRIGHT, PRESENT reverb
     float damping = 0.15f;  // Even brighter!
 
-    // Set reverb parameters and process
     verb.set_parameters(delayTime, feedback, diffusion, damping);
     verb.process_block(buffer);
 
-    // 100% WET - no dry/wet mixing for now
 }
 
 //==============================================================================
